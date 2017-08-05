@@ -1,6 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 import openpyxl
 wb = openpyxl.load_workbook('bac.xlsx')
 type(wb)
@@ -16,10 +17,9 @@ timeaxis = []
 priceaxis = []
 equ_axis = []
 
-theta_first = 0
-theta_second = 0
-theta_third = 0
-ALPHA = .000000008
+parameter = [0.00112458983045,0.00112458983045,-8.00882016243e-05]
+
+ALPHA = 0.000000000008
 
 for i in reversed(range(1,128,1)):
 	date = anotherSheet.cell(row=i, column=1).value
@@ -34,33 +34,31 @@ for i in reversed(range(1,128,1)):
 	if(origin==0):
 		origin=time
 	time-=origin
+	time=time-64/128 #mean normalization and feature scaling
 	timeaxis.append(time)
 	priceaxis.append(close_price)
 	time=0
+nptime = np.array(timeaxis)
 print "It worked!1"
 
-
-previous = 100000 #arbitrary value that's not 0 or .1 close to it
 iter = 0
-while iter<100000:
-	previous = theta_second
+while iter<1000000: #how many iterations you want the program to run for. More accurate the more iterations
 	sum_one = 0
 	sum_two = 0
-	sum_three = 1
-	for i in range(0,127,1):
-		x = timeaxis[i] 
-		sum_one += (theta_first + theta_second*x + theta_third*x*x - priceaxis[i])
-		sum_two += (theta_first + theta_second*x + theta_third*x*x - priceaxis[i])*x
-		sum_three +=(theta_first + theta_second*x + theta_third*x*x - priceaxis[i])*x*x
-	theta_first -= ALPHA*sum_one/127
-	theta_second -= ALPHA*sum_two/127
-	theta_third -= ALPHA*sum_three/127
-	#print "This is the index of the iteration", iter, "theta_first:", theta_first, "theta_second:", theta_second, "theta_third", theta_third
-	iter+=1
+	sum_three = 0
+	hypo_sum = 0
+	for x in range(0,len(parameter)):
+		hypo_sum += np.power(nptime, x)*parameter[x]
 
+	for x in range(0,len(parameter)):
+		parameter[x] -= ALPHA * np.sum(np.multiply(hypo_sum - np.array(priceaxis),np.power(nptime, x)))
+
+	#print "This is the index of the iteration", iter, "theta_first:", parameter[0], "theta_second:", parameter[1], "theta_third", parameter[2]
+	iter+=1
+print "This is the index of the iteration", iter, "theta_first:", parameter[0], "theta_second:", parameter[1], "theta_third", parameter[2]
 for i in xrange(0,127,1):
 	x = timeaxis[i]
-	equ_axis.append(theta_third*x*x + theta_second*x + theta_first)
+	equ_axis.append(parameter[0] + parameter[1]*x + parameter[2]*x*x)
 print "equation points plotted!"
 
 plt.plot(timeaxis,priceaxis)
